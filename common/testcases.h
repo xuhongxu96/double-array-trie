@@ -4,10 +4,11 @@
 #include "loader.h"
 #include "profile.h"
 #include <boost/ut.hpp>
+#include <compact_serializer.h>
 #include <trie_concepts.h>
 
 template <xtrie::IsTrie TrieClass, class T = char>
-static void test_lexicon(const char *path, const T *test_case) {
+static TrieClass test_lexicon(const char *path, const T *test_case) {
   using namespace boost::ut;
   using namespace xtrie;
 
@@ -34,8 +35,12 @@ static void test_lexicon(const char *path, const T *test_case) {
   expect(res.matched());
   expect(trie.value_at(res.state()) == 0);
 
-  // auto metrics = trie.collect_metrics();
-  // std::cout << metrics << std::endl;
+  if constexpr (IsSerializableTrie<TrieClass>) {
+    std::ofstream ofs(std::string(path) + ".bin", std::ios::binary | std::ios::trunc);
+    trie.save(ofs, CompactSerializer{});
+  }
+
+  return trie;
 }
 
 template <xtrie::IsTrie TrieClass> static void add_common_tests() {

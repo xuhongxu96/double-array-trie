@@ -317,6 +317,31 @@ public:
 
   value_type &value_at(int64_t state_index) { return value_[state_index]; }
 
+  template <class OStream, class F>
+  size_t save(OStream &os, F &&serialize_base_check_value) {
+    assert(base_.size() == check_.size() && base_.size() == value_.size());
+
+    size_t size_sum =
+        sizeof(uint8_t) *
+        static_cast<size_t>(std::numeric_limits<uint8_t>::max() + 1);
+
+    for (size_t i = 0; i < base_.size(); ++i) {
+      size_sum += serialize_base_check_value.get_size(base_[i], check_[i],
+                                                      value_[i], DEFAULT_VALUE);
+    }
+
+    for (size_t i = 0; i < std::numeric_limits<uint8_t>::max() + 1; ++i) {
+      os.write(reinterpret_cast<char *>(charmap_ + i), sizeof(uint8_t));
+    }
+
+    for (size_t i = 0; i < base_.size(); ++i) {
+      serialize_base_check_value(os, base_[i], check_[i], value_[i],
+                                 DEFAULT_VALUE);
+    }
+
+    return size_sum;
+  }
+
 private:
   struct BuildInfo {
     // internal trie
@@ -511,6 +536,7 @@ private:
 
 #ifdef ASSERT_CONCEPT
 static_assert(IsStaticTrie<DoubleArrayTrieBuilder<>>);
+static_assert(IsSerializableTrie<DoubleArrayTrieBuilder<>>);
 #endif
 
 } // namespace xtrie

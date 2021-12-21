@@ -2,20 +2,9 @@
 #define TRIE_H
 
 #include <concepts>
+#include <iostream>
 
 namespace xtrie {
-
-// template <typename T, typename TValue>
-// concept IsConstNode = requires(const std::remove_cvref_t<T> &state) {
-//  { state.value() } -> std::same_as<const TValue &>;
-//  { state.has_value() } -> std::convertible_to<bool>;
-//};
-//
-// template <typename T, typename TValue>
-// concept IsNode = IsConstNode<T, TValue> &&
-//    requires(std::remove_cvref_t<T> &state) {
-//  { state.value() } -> std::same_as<TValue &>;
-//};
 
 template <typename T, typename TValue>
 concept IsTraverseResult = requires(const std::remove_cvref_t<T> &res) {
@@ -50,6 +39,14 @@ concept IsTrie = requires(std::remove_cvref_t<T> &trie) {
 template <typename T>
 concept IsStaticTrie = IsTrie<T> && requires(std::remove_cvref_t<T> &trie) {
   { trie.end_build() } -> std::same_as<void>;
+};
+
+template <typename T>
+concept IsSerializableTrie = IsTrie<T> &&
+    requires(std::remove_cvref_t<T> &trie, std::ostream &os) {
+  {
+    trie.save(os, [](std::ostream &os, int64_t, int64_t, int, int) { os << 0; })
+    } -> std::same_as<void>;
 };
 
 } // namespace xtrie
