@@ -41,12 +41,24 @@ concept IsStaticTrie = IsTrie<T> && requires(std::remove_cvref_t<T> &trie) {
   { trie.end_build() } -> std::same_as<void>;
 };
 
+namespace details {
+  struct DummySerializer {
+    template <typename OStream, typename T>
+    void operator()(OStream &os, int64_t, int64_t, T, T) const {
+      int a = 0;
+      os.write(reinterpret_cast<char *>(&a), 1);
+    }
+
+    template <typename T> size_t get_size(int64_t, int64_t, T, T) const {
+      return 0;
+    }
+  };
+} // namespace details
+
 template <typename T>
 concept IsSerializableTrie = IsTrie<T> &&
     requires(std::remove_cvref_t<T> &trie, std::ostream &os) {
-  {
-    trie.save(os, [](std::ostream &os, int64_t, int64_t, int, int) { os << 0; })
-    } -> std::same_as<void>;
+  { trie.save(os, details::DummySerializer{}) } -> std::same_as<size_t>;
 };
 
 } // namespace xtrie

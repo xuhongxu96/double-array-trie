@@ -317,7 +317,7 @@ public:
 
   value_type &value_at(int64_t state_index) { return value_[state_index]; }
 
-  template <class OStream, class F>
+  template <typename OStream, typename F>
   size_t save(OStream &os, F &&serialize_base_check_value) {
     assert(base_.size() == check_.size() && base_.size() == value_.size());
 

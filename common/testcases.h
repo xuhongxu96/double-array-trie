@@ -4,10 +4,10 @@
 #include "loader.h"
 #include "profile.h"
 #include <boost/ut.hpp>
-#include <compact_serializer.h>
 #include <trie_concepts.h>
 
-template <xtrie::IsTrie TrieClass, class T = char>
+template <xtrie::IsTrie TrieClass, typename Serializer = void,
+          typename T = char>
 static TrieClass test_lexicon(const char *path, const T *test_case) {
   using namespace boost::ut;
   using namespace xtrie;
@@ -36,14 +36,16 @@ static TrieClass test_lexicon(const char *path, const T *test_case) {
   expect(trie.value_at(res.state()) == 0);
 
   if constexpr (IsSerializableTrie<TrieClass>) {
-    std::ofstream ofs(std::string(path) + ".bin", std::ios::binary | std::ios::trunc);
-    trie.save(ofs, CompactSerializer{});
+    std::ofstream ofs(std::string(path) + ".bin",
+                      std::ios::binary | std::ios::trunc);
+    trie.save(ofs, Serializer{});
   }
 
   return trie;
 }
 
-template <xtrie::IsTrie TrieClass> static void add_common_tests() {
+template <xtrie::IsTrie TrieClass, typename Serializer = void>
+static void add_common_tests() {
   using namespace boost::ut;
   using namespace boost::ut::literals;
   using namespace boost::ut::operators::terse;
@@ -78,11 +80,11 @@ template <xtrie::IsTrie TrieClass> static void add_common_tests() {
   */
 
   "test build en_466k.txt"_test = [] {
-    test_lexicon<TrieClass>(DATA_DIR "en_466k.txt", u8"scordature");
+    test_lexicon<TrieClass, Serializer>(DATA_DIR "en_466k.txt", u8"scordature");
   };
 
   "test build zh_cn_406k.txt"_test = [] {
-    test_lexicon<TrieClass>(DATA_DIR "zh_cn_406k.txt", u8"李祥霆");
+    test_lexicon<TrieClass, Serializer>(DATA_DIR "zh_cn_406k.txt", u8"李祥霆");
   };
 }
 

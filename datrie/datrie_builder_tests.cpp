@@ -1,4 +1,5 @@
 #include "datrie_builder.h"
+#include "serializers/compact_serializer.h"
 #include <algorithm>
 #include <boost/ut.hpp>
 #include <string_view>
@@ -87,7 +88,7 @@ int main() {
     expect(builder.value_at(it.state()) == 1);
   };
 
-  add_common_tests<DoubleArrayTrieBuilder<>>();
+  add_common_tests<DoubleArrayTrieBuilder<>, CompactSerializer>();
 
   return 0;
 }
