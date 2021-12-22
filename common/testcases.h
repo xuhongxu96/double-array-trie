@@ -79,6 +79,10 @@ static void add_common_tests() {
   };
   */
 
+  "test build en_1k.txt"_test = [] {
+    test_lexicon<TrieClass, Serializer>(DATA_DIR "en_1k.txt", u8"aborticide");
+  };
+
   "test build en_466k.txt"_test = [] {
     test_lexicon<TrieClass, Serializer>(DATA_DIR "en_466k.txt", u8"scordature");
   };

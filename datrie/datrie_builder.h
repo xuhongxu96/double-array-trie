@@ -321,18 +321,18 @@ public:
   size_t save(OStream &os, F &&serialize_base_check_value) {
     assert(base_.size() == check_.size() && base_.size() == value_.size());
 
-    size_t size_sum =
-        sizeof(uint8_t) *
-        static_cast<size_t>(std::numeric_limits<uint8_t>::max() + 1);
+    constexpr uint32_t charmap_size = sizeof(uint8_t) * (MAX_CHAR_VAL + 1);
+
+    uint32_t size_sum = charmap_size;
 
     for (size_t i = 0; i < base_.size(); ++i) {
-      size_sum += serialize_base_check_value.get_size(base_[i], check_[i],
-                                                      value_[i], DEFAULT_VALUE);
+      size_sum += static_cast<uint32_t>(serialize_base_check_value.get_size(
+          base_[i], check_[i], value_[i], DEFAULT_VALUE));
     }
 
-    for (size_t i = 0; i < std::numeric_limits<uint8_t>::max() + 1; ++i) {
-      os.write(reinterpret_cast<char *>(charmap_ + i), sizeof(uint8_t));
-    }
+    os.write(reinterpret_cast<char *>(&size_sum), sizeof(uint32_t));
+
+    os.write(reinterpret_cast<char *>(charmap_), charmap_size);
 
     for (size_t i = 0; i < base_.size(); ++i) {
       serialize_base_check_value(os, base_[i], check_[i], value_[i],
@@ -343,6 +343,8 @@ public:
   }
 
 private:
+  static constexpr uint32_t MAX_CHAR_VAL = std::numeric_limits<uint8_t>::max();
+
   struct BuildInfo {
     // internal trie
     internal_trie_type trie_;
@@ -350,7 +352,7 @@ private:
     // meta info calculated from input words
     std::unordered_map<char, size_t> char_freq_;
 
-    char rev_charmap_[std::numeric_limits<uint8_t>::max() + 1];
+    char rev_charmap_[MAX_CHAR_VAL + 1];
   };
 
   struct PostMetaData {
@@ -361,7 +363,7 @@ private:
   std::unique_ptr<BuildInfo> build_;
 
   // constructed things
-  uint8_t charmap_[std::numeric_limits<uint8_t>::max() + 1];
+  uint8_t charmap_[MAX_CHAR_VAL + 1];
 
   std::vector<int64_t> base_;
   std::vector<int64_t> check_;
@@ -374,10 +376,8 @@ private:
   }
 
   void build_charmap() {
-    std::fill(charmap_, charmap_ + std::numeric_limits<uint8_t>::max() + 1, 0);
-    std::fill(build_->rev_charmap_,
-              build_->rev_charmap_ + std::numeric_limits<uint8_t>::max() + 1,
-              0);
+    std::fill(charmap_, charmap_ + MAX_CHAR_VAL + 1, 0);
+    std::fill(build_->rev_charmap_, build_->rev_charmap_ + MAX_CHAR_VAL + 1, 0);
 
     std::vector<std::pair<size_t, char>> sorted_char_freq;
     for (auto &[ch, n] : build_->char_freq_) {
@@ -389,8 +389,7 @@ private:
 
     static_assert(std::numeric_limits<unsigned char>::max() <=
                   std::numeric_limits<uint8_t>::max());
-    assert(sorted_char_freq.size() <
-           std::numeric_limits<uint8_t>::max()); // 0 will never appear
+    assert(sorted_char_freq.size() < MAX_CHAR_VAL); // 0 will never appear
 
     for (uint8_t i = 0; i < static_cast<uint8_t>(sorted_char_freq.size());
          ++i) {

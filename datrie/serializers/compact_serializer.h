@@ -7,9 +7,9 @@ namespace xtrie {
 
 namespace details {
 struct CompactValue {
-  uint32_t base : 23;
-  uint8_t check : 8;
-  bool terminal : 1;
+  unsigned terminal : 1;
+  unsigned check : 8;
+  unsigned base : 23;
 };
 } // namespace details
 
