@@ -257,7 +257,8 @@ private:
 };
 
 #ifdef ASSERT_CONCEPT
-static_assert(IsStaticTrie<DAWG<>>);
+static_assert(IsKVTrie<DAWG<>>);
+static_assert(IsStaticTrieBuilder<DAWG<>>);
 #endif
 
 } // namespace xtrie

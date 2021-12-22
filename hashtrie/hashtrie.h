@@ -163,8 +163,8 @@ private:
 };
 
 #ifdef ASSERT_CONCEPT
-static_assert(IsTrie<HashTrie<>>);
-static_assert(!IsStaticTrie<HashTrie<>>);
+static_assert(IsTrieBuilder<HashTrie<>>);
+static_assert(IsKVTrie<HashTrie<>>);
 #endif
 
 } // namespace xtrie

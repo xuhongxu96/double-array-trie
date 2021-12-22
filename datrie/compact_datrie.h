@@ -6,12 +6,34 @@
 #include <limits>
 #include <vector>
 
+#ifdef ASSERT_CONCEPT
+#include <trie_concepts.h>
+#endif
+
 namespace xtrie {
 
 template <typename T = int, T DefaultValue = -1> class CompactDoubleArrayTrie {
 public:
   using value_type = T;
   static constexpr value_type DEFAULT_VALUE = DefaultValue;
+
+  class TraverseResult {
+    friend class CompactDoubleArrayTrie;
+
+  public:
+    unsigned state() const { return state_index_; }
+    bool matched() const { return matched_; }
+    uint32_t matched_length() const { return matched_length_; }
+
+  private:
+    unsigned state_index_;
+    bool matched_;
+    uint32_t matched_length_;
+
+    TraverseResult(unsigned state_index, bool matched, uint32_t matched_length)
+        : state_index_(state_index), matched_(matched),
+          matched_length_(matched_length) {}
+  };
 
 private:
   static constexpr uint32_t MAX_CHAR_VAL = std::numeric_limits<uint8_t>::max();
@@ -39,6 +61,30 @@ public:
     }
   }
 
+  TraverseResult traverse(std::string_view prefix, unsigned state_index) const {
+    unsigned p = state_index;
+
+    uint32_t i = 0;
+    for (; i < prefix.size(); ++i) {
+      uint8_t mapped_ch = charmap_[static_cast<uint8_t>(prefix[i])];
+      unsigned new_base = values_[p].base + mapped_ch;
+      if (new_base < values_.size() && values_[new_base].check == mapped_ch) {
+        p = new_base;
+      } else {
+        return {p, false, i};
+      }
+    }
+    return {p, true, i};
+  }
+
+  TraverseResult traverse(std::string_view prefix) const {
+    return traverse(prefix, 0);
+  }
+
+  bool has_value_at(unsigned state_index) const {
+    return values_[state_index].terminal;
+  }
+
 private:
   union CompactValue {
     struct {
@@ -55,6 +101,10 @@ private:
   uint8_t charmap_[MAX_CHAR_VAL + 1];
   std::vector<CompactValue> values_;
 };
+
+#ifdef ASSERT_CONCEPT
+static_assert(IsDeserializableTrie<CompactDoubleArrayTrie<>>);
+#endif
 
 } // namespace xtrie
 

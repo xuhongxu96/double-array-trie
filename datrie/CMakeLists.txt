@@ -9,4 +9,4 @@ add_library(datrie INTERFACE)
 target_include_directories(datrie INTERFACE .)
 
 add_executable(datrie_tests datrie_tests.cpp)
-target_link_libraries(datrie_tests PRIVATE datrie)
+target_link_libraries(datrie_tests PRIVATE datrie_builder datrie)

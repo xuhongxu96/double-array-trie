@@ -4,91 +4,157 @@
 #include "loader.h"
 #include "profile.h"
 #include <boost/ut.hpp>
+#include <string>
 #include <trie_concepts.h>
 
-template <xtrie::IsTrie TrieClass, typename Serializer = void,
-          typename T = char>
-static TrieClass test_lexicon(const char *path, const T *test_case) {
-  using namespace boost::ut;
-  using namespace xtrie;
+template <xtrie::IsTrieBuilder TrieBuilder, typename Serializer = void>
+class BuilderCommonTests {
+public:
+  BuilderCommonTests(std::string filename) : filename_(std::move(filename)) {}
 
-  std::cout << path << std::endl;
+  void build_dict() {
+    using namespace xtrie;
 
-  auto words = load_lexicon(path);
-  std::sort(words.begin(), words.end());
+    std::cout << filename_ << std::endl;
 
-  TrieClass trie;
+    auto words = load_lexicon((std::string(DATA_DIR) + filename_).c_str());
+    std::sort(words.begin(), words.end());
 
-  auto mem0 = get_mem_info();
+    auto mem0 = get_mem_info();
 
-  for (auto &w : words) {
-    trie.add(w, 0);
+    for (auto &w : words) {
+      builder_.add(w, 0);
+    }
+
+    if constexpr (IsStaticTrieBuilder<TrieBuilder>) {
+      builder_.end_build();
+    }
+
+    printf("Memory usage by builder: %zd bytes\n",
+           get_mem_delta(mem0, get_mem_info()));
   }
 
-  if constexpr (IsStaticTrie<TrieClass>) {
-    trie.end_build();
+  std::string serialize() const {
+    using namespace xtrie;
+
+    std::string path = DATA_DIR + filename_ + ".bin";
+
+    if constexpr (IsSerializableTrieBuilder<TrieBuilder>) {
+      std::ofstream ofs(path, std::ios::binary | std::ios::trunc);
+      builder_.save(ofs, Serializer{});
+    }
+
+    return path;
   }
 
-  printf("Memory usage: %zd bytes\n", get_mem_delta(mem0, get_mem_info()));
+  template <class TChar> bool contains(const TChar *str) const {
+    using namespace xtrie;
 
-  auto res = trie.traverse(reinterpret_cast<const char *>(test_case));
-  expect(res.matched());
-  expect(trie.value_at(res.state()) == 0);
-
-  if constexpr (IsSerializableTrie<TrieClass>) {
-    std::ofstream ofs(std::string(path) + ".bin",
-                      std::ios::binary | std::ios::trunc);
-    trie.save(ofs, Serializer{});
+    if constexpr (IsTrie<TrieBuilder>) {
+      auto res = builder_.traverse(reinterpret_cast<const char *>(str));
+      return res.matched() && builder_.has_value_at(res.state());
+    } else {
+      return true;
+    }
   }
 
-  return trie;
-}
+private:
+  TrieBuilder builder_;
+  std::string filename_;
+};
 
-template <xtrie::IsTrie TrieClass, typename Serializer = void>
+template <xtrie::IsDeserializableTrie Trie,
+          xtrie::IsSerializableTrieBuilder TrieBuilder,
+          typename Serializer = void>
+class SerializableTrieCommonTests {
+public:
+  SerializableTrieCommonTests(std::string filename)
+      : builder_(std::move(filename)) {}
+
+  void build() {
+    builder_.build_dict();
+    auto bin_path = builder_.serialize();
+    std::ifstream ifs(bin_path, std::ios::binary);
+
+    auto mem0 = get_mem_info();
+
+    trie_.load(ifs);
+
+    printf("Memory usage by trie: %zd bytes\n",
+           get_mem_delta(mem0, get_mem_info()));
+  }
+
+  template <class TChar> bool contains(const TChar *str) const {
+    using namespace xtrie;
+
+    auto res = trie_.traverse(reinterpret_cast<const char *>(str));
+    return res.matched() && trie_.has_value_at(res.state());
+  }
+
+private:
+  BuilderCommonTests<TrieBuilder, Serializer> builder_;
+  Trie trie_;
+};
+
+template <xtrie::IsTrieBuilder TrieBuilder, typename Serializer = void>
 static void add_common_tests() {
   using namespace boost::ut;
   using namespace boost::ut::literals;
   using namespace boost::ut::operators::terse;
   using namespace xtrie;
 
-  /*
-  "test h->i and h->e"_test = [] {
-    TrieClass trie;
+  using test_type = BuilderCommonTests<TrieBuilder, Serializer>;
 
-    std::vector<std::string> words{"hi", "hello", "mello"};
-    std::sort(words.begin(), words.end());
-
-    for (auto &w : words) {
-      trie.add(w, 0);
-    }
-
-    if constexpr (IsStaticTrie<TrieClass>) {
-      trie.end_build();
-    }
-
-    auto h_res = trie.traverse("h");
-    std::string h_trans;
-
-    for (auto it = h_res.node->trans_begin(); it != h_res.node->trans_end();
-         ++it) {
-      h_trans.push_back(it.key());
-    }
-
-    std::sort(h_trans.begin(), h_trans.end());
-    expect(h_trans == "ei");
-  };
-  */
-
-  "test build en_1k.txt"_test = [] {
-    test_lexicon<TrieClass, Serializer>(DATA_DIR "en_1k.txt", u8"aborticide");
+  "test en_1k.txt"_test = [] {
+    test_type test("en_1k.txt");
+    test.build_dict();
+    test.serialize();
+    expect(test.contains(u8"aborticide"));
   };
 
-  "test build en_466k.txt"_test = [] {
-    test_lexicon<TrieClass, Serializer>(DATA_DIR "en_466k.txt", u8"scordature");
+  "test en_466k.txt"_test = [] {
+    test_type test("en_466k.txt");
+    test.build_dict();
+    test.serialize();
+    expect(test.contains(u8"scordature"));
   };
 
-  "test build zh_cn_406k.txt"_test = [] {
-    test_lexicon<TrieClass, Serializer>(DATA_DIR "zh_cn_406k.txt", u8"李祥霆");
+  "test zh_cn_406k.txt"_test = [] {
+    test_type test("zh_cn_406k.txt");
+    test.build_dict();
+    test.serialize();
+    expect(test.contains(u8"李祥霆"));
+  };
+}
+
+template <xtrie::IsDeserializableTrie Trie,
+          xtrie::IsSerializableTrieBuilder TrieBuilder,
+          typename Serializer = void>
+static void add_common_serializable_trie_tests() {
+
+  using namespace boost::ut;
+  using namespace boost::ut::literals;
+  using namespace boost::ut::operators::terse;
+  using namespace xtrie;
+
+  using test_type = SerializableTrieCommonTests<Trie, TrieBuilder, Serializer>;
+
+  "test en_1k.txt"_test = [] {
+    test_type test("en_1k.txt");
+    test.build();
+    expect(test.contains(u8"aborticide"));
+  };
+
+  "test en_466k.txt"_test = [] {
+    test_type test("en_466k.txt");
+    test.build();
+    expect(test.contains(u8"scordature"));
+  };
+
+  "test zh_cn_406k.txt"_test = [] {
+    test_type test("zh_cn_406k.txt");
+    test.build();
+    expect(test.contains(u8"李祥霆"));
   };
 }
 

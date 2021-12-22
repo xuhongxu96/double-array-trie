@@ -270,7 +270,7 @@ public:
     for (; i < prefix.size(); ++i) {
       uint8_t mapped_ch = charmap_[static_cast<uint8_t>(prefix[i])];
       int64_t new_base = base_[p] + mapped_ch;
-      if (check_[new_base] == mapped_ch) {
+      if (new_base < check_.size() && check_[new_base] == mapped_ch) {
         p = new_base;
       } else {
         return {p, false, i};
@@ -318,7 +318,7 @@ public:
   value_type &value_at(int64_t state_index) { return value_[state_index]; }
 
   template <typename OStream, typename F>
-  size_t save(OStream &os, F &&serialize_base_check_value) {
+  size_t save(OStream &os, F &&serialize_base_check_value) const {
     assert(base_.size() == check_.size() && base_.size() == value_.size());
 
     constexpr uint32_t charmap_size = sizeof(uint8_t) * (MAX_CHAR_VAL + 1);
@@ -332,7 +332,7 @@ public:
 
     os.write(reinterpret_cast<char *>(&size_sum), sizeof(uint32_t));
 
-    os.write(reinterpret_cast<char *>(charmap_), charmap_size);
+    os.write(reinterpret_cast<const char *>(charmap_), charmap_size);
 
     for (size_t i = 0; i < base_.size(); ++i) {
       serialize_base_check_value(os, base_[i], check_[i], value_[i],
@@ -534,8 +534,9 @@ private:
 };
 
 #ifdef ASSERT_CONCEPT
-static_assert(IsStaticTrie<DoubleArrayTrieBuilder<>>);
-static_assert(IsSerializableTrie<DoubleArrayTrieBuilder<>>);
+static_assert(IsKVTrie<DoubleArrayTrieBuilder<>>);
+static_assert(IsStaticTrieBuilder<DoubleArrayTrieBuilder<>>);
+static_assert(IsSerializableTrieBuilder<DoubleArrayTrieBuilder<>>);
 #endif
 
 } // namespace xtrie
