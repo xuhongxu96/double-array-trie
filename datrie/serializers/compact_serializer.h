@@ -2,6 +2,7 @@
 #define COMPACT_SERIALIZER
 
 #include <cstdint>
+#include <vector>
 
 namespace xtrie {
 
@@ -11,6 +12,9 @@ struct CompactValue {
   unsigned check : 8;
   unsigned base : 23;
 };
+
+static_assert(sizeof(CompactValue) == sizeof(uint32_t));
+
 } // namespace details
 
 //! @brief Compact serializer will not save the values, but save a flag
@@ -22,13 +26,17 @@ struct CompactValue {
 //!     23 bit for base, 8 bit for check, 1 bit for terminal flag.
 //!
 struct CompactSerializer {
-  template <typename T> size_t get_size(int64_t, int64_t, T, T) const {
-    return sizeof(uint32_t);
+  template <typename T>
+  size_t get_size(const std::vector<int64_t> &base,
+                  const std::vector<int64_t> &, const std::vector<T> &,
+                  T) const {
+    return sizeof(uint32_t) * base.size();
   }
 
   template <typename OStream, typename T>
-  void operator()(OStream &os, int64_t base, int64_t check, T value,
-                  T default_value) const {
+  void operator()(OStream &os, const std::vector<int64_t> &base,
+                  const std::vector<int64_t> &check,
+                  const std::vector<T> &value, T default_value) const {
     assert(base < (1 << 23) && check < (1 << 8));
 
     union {
@@ -36,11 +44,13 @@ struct CompactSerializer {
       uint32_t uint32;
     };
 
-    val.base = static_cast<uint32_t>(base);
-    val.check = static_cast<uint8_t>(check);
-    val.terminal = value != default_value;
+    for (size_t i = 0; i < base.size(); ++i) {
+      val.base = static_cast<uint32_t>(base[i]);
+      val.check = static_cast<uint8_t>(check[i]);
+      val.terminal = value[i] != default_value;
 
-    os.write(reinterpret_cast<char *>(&uint32), sizeof(uint32_t));
+      os.write(reinterpret_cast<char *>(&uint32), sizeof(uint32_t));
+    }
   }
 };
 

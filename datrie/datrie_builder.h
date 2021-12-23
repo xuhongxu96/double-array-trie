@@ -325,19 +325,12 @@ public:
 
     uint32_t size_sum = charmap_size;
 
-    for (size_t i = 0; i < base_.size(); ++i) {
-      size_sum += static_cast<uint32_t>(serialize_base_check_value.get_size(
-          base_[i], check_[i], value_[i], DEFAULT_VALUE));
-    }
+    size_sum += static_cast<uint32_t>(serialize_base_check_value.get_size(
+        base_, check_, value_, DEFAULT_VALUE));
 
     os.write(reinterpret_cast<char *>(&size_sum), sizeof(uint32_t));
-
     os.write(reinterpret_cast<const char *>(charmap_), charmap_size);
-
-    for (size_t i = 0; i < base_.size(); ++i) {
-      serialize_base_check_value(os, base_[i], check_[i], value_[i],
-                                 DEFAULT_VALUE);
-    }
+    serialize_base_check_value(os, base_, check_, value_, DEFAULT_VALUE);
 
     return size_sum;
   }

@@ -3,6 +3,7 @@
 
 #include <concepts>
 #include <iostream>
+#include <vector>
 
 namespace xtrie {
 template <typename T>
@@ -24,12 +25,16 @@ concept IsStaticTrieBuilder = IsTrieBuilder<T> &&
 namespace details {
   struct DummySerializer {
     template <typename OStream, typename T>
-    void operator()(OStream &os, int64_t, int64_t, T, T) const {
+    void operator()(OStream &os, const std::vector<int64_t> &,
+                    const std::vector<int64_t> &, const std::vector<T> &,
+                    T) const {
       int a = 0;
       os.write(reinterpret_cast<char *>(&a), 1);
     }
 
-    template <typename T> size_t get_size(int64_t, int64_t, T, T) const {
+    template <typename T>
+    size_t get_size(const std::vector<int64_t> &, const std::vector<int64_t> &,
+                    const std::vector<T> &, T) const {
       return 0;
     }
   };
