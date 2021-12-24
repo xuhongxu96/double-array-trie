@@ -269,8 +269,9 @@ public:
     uint32_t i = 0;
     for (; i < prefix.size(); ++i) {
       uint8_t mapped_ch = charmap_[static_cast<uint8_t>(prefix[i])];
+      assert(base_[p] > 0);
       int64_t new_base = base_[p] + mapped_ch;
-      if (new_base < check_.size() && check_[new_base] == mapped_ch) {
+      if (static_cast<size_t>(new_base) < check_.size() && check_[new_base] == mapped_ch) {
         p = new_base;
       } else {
         return {p, false, i};
@@ -394,11 +395,11 @@ private:
   }
 
   bool overflow(size_t i) const { return i >= check_.size(); }
-  bool free(uint32_t i) const {
+  bool free(size_t i) const {
     assert(!overflow(i));
     return check_[i] <= 0;
   }
-  void resize(uint32_t n) {
+  void resize(size_t n) {
     base_.resize(n + 1, 0);
     check_.resize(n + 1, 0);
     value_.resize(n + 1, DefaultValue);
@@ -523,6 +524,12 @@ private:
       // update base of the "from" state node
       base_[node_base] = start_base - trans_set.front();
     }
+
+    size_t last_unused = base_.size() - 1;
+    while (last_unused >= 0 && free(last_unused))
+      --last_unused;
+
+    resize(last_unused);
   }
 };
 

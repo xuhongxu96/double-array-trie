@@ -1,20 +1,21 @@
-#ifndef DATRIE_COMPACT_SERIALIZER
-#define DATRIE_COMPACT_SERIALIZER
+#ifndef DATRIE_DEFAULT_SERIALIZER
+#define DATRIE_DEFAULT_SERIALIZER
 
 #include <cstdint>
 #include <vector>
 
 namespace xtrie {
 
-//! @brief Compact serializer will not save the values, but save a flag
-//! indicating whether the state is a terminal
+//! @brief Default serializer will save the values
 //!
-//!     base value must be less than 2^23 so that the base and check can be
+//!     base value must be less than 2^24 so that the base and check can be
 //!     stored in a single int32.
 //!
-//!     23 bit for base, 8 bit for check, 1 bit for terminal flag.
+//!     24 bit for base, 8 bit for check.
 //!
-struct CompactSerializer {
+//!     values will be saved in another array at the end.
+//!
+struct DefaultSerializer {
   template <typename T>
   size_t get_size(const std::vector<int64_t> &base,
                   const std::vector<int64_t> &, const std::vector<T> &,
@@ -26,6 +27,7 @@ struct CompactSerializer {
   void operator()(OStream &os, const std::vector<int64_t> &base,
                   const std::vector<int64_t> &check,
                   const std::vector<T> &value, T default_value) const {
+    static_assert(sizeof(T) <= sizeof(uint32_t));
 
     union {
       CompactValue val;
@@ -33,21 +35,23 @@ struct CompactSerializer {
     };
 
     for (size_t i = 0; i < base.size(); ++i) {
-      assert(base[i] < (1 << 23) && check[i] < (1 << 8));
+      assert(base[i] < (1 << 24) && check[i] < (1 << 8));
 
       val.base = static_cast<uint32_t>(base[i]);
       val.check = static_cast<uint8_t>(check[i]);
-      val.terminal = value[i] != default_value;
 
       os.write(reinterpret_cast<char *>(&uint32), sizeof(uint32_t));
+    }
+
+    for (size_t i = 0; i < base.size(); ++i) {
+      os.write(reinterpret_cast<const char *>(&value[i]), sizeof(T));
     }
   }
 
 private:
   struct CompactValue {
-    unsigned terminal : 1;
     unsigned check : 8;
-    unsigned base : 23;
+    unsigned base : 24;
   };
 
   static_assert(sizeof(CompactValue) == sizeof(uint32_t));
@@ -55,4 +59,4 @@ private:
 
 } // namespace xtrie
 
-#endif // DATRIE_COMPACT_SERIALIZER
+#endif // DATRIE_DEFAULT_SERIALIZER

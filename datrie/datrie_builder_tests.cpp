@@ -1,5 +1,6 @@
 #include "datrie_builder.h"
 #include "serializers/compact_serializer.h"
+#include "serializers/default_serializer.h"
 #include <algorithm>
 #include <boost/ut.hpp>
 #include <string_view>
@@ -89,6 +90,7 @@ int main() {
   };
 
   add_common_tests<DoubleArrayTrieBuilder<>, CompactSerializer>();
+  add_common_tests<DoubleArrayTrieBuilder<>, DefaultSerializer>(true);
 
   return 0;
 }

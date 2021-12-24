@@ -1,5 +1,5 @@
-#ifndef COMPACT_DATRIE_H
-#define COMPACT_DATRIE_H
+#ifndef DEFAULT_DATRIE_H
+#define DEFAULT_DATRIE_H
 
 #include <cassert>
 #include <cstdint>
@@ -12,13 +12,13 @@
 
 namespace xtrie {
 
-template <typename T = int, T DefaultValue = -1> class CompactDoubleArrayTrie {
+template <typename T = int, T DefaultValue = -1> class DefaultDoubleArrayTrie {
 public:
   using value_type = T;
   static constexpr value_type DEFAULT_VALUE = DefaultValue;
 
   class TraverseResult {
-    friend class CompactDoubleArrayTrie;
+    friend class DefaultDoubleArrayTrie;
 
   public:
     unsigned state() const { return state_index_; }
@@ -51,6 +51,7 @@ public:
 
     size_sum -= charmap_size;
     bases_.resize(size_sum / sizeof(uint32_t));
+    values_.resize(size_sum / sizeof(uint32_t));
 
     is.read(reinterpret_cast<char *>(charmap_), charmap_size);
 
@@ -58,6 +59,10 @@ public:
       uint32_t res;
       is.read(reinterpret_cast<char *>(&res), sizeof(uint32_t));
       bases_[i].val = res;
+    }
+
+    for (size_t i = 0; i < values_.size(); ++i) {
+      is.read(reinterpret_cast<char *>(&values_[i]), sizeof(value_type));
     }
   }
 
@@ -82,15 +87,20 @@ public:
   }
 
   bool has_value_at(unsigned state_index) const {
-    return bases_[state_index].terminal;
+    return values_[state_index] != DEFAULT_VALUE;
   }
+
+  const value_type &value_at(unsigned state_index) const {
+    return values_[state_index];
+  }
+
+  value_type &value_at(unsigned state_index) { return values_[state_index]; }
 
 private:
   union CompactValue {
     struct {
-      unsigned terminal : 1;
       unsigned check : 8;
-      unsigned base : 23;
+      unsigned base : 24;
     };
 
     uint32_t val;
@@ -100,12 +110,14 @@ private:
 
   uint8_t charmap_[MAX_CHAR_VAL + 1];
   std::vector<CompactValue> bases_;
+  std::vector<value_type> values_;
 };
 
 #ifdef ASSERT_CONCEPT
-static_assert(IsDeserializableTrie<CompactDoubleArrayTrie<>>);
+static_assert(IsDeserializableTrie<DefaultDoubleArrayTrie<>>);
+static_assert(IsKVTrie<DefaultDoubleArrayTrie<>>);
 #endif
 
 } // namespace xtrie
 
-#endif // COMPACT_DATRIE_H
+#endif // DEFAULT_DATRIE_H
