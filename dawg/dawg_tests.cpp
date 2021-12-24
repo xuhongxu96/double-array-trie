@@ -9,6 +9,20 @@ int main() {
   using namespace boost::ut::operators::terse;
   using namespace xtrie;
 
+  "test"_test = [] {
+    DAWG dawg;
+
+    std::vector<std::string> words{"abattised", "abattises", "abfarad",
+                                   "abfarads"};
+    std::sort(words.begin(), words.end());
+
+    for (auto &w : words) {
+      dawg.add(w, 0);
+    }
+    dawg.end_build();
+    expect(dawg.traverse("abfarads").matched());
+  };
+
   add_common_tests<DAWG<>>();
 
   "test 'e' node is shared btw 'he' and 'me'"_test = [] {

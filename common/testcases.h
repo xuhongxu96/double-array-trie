@@ -75,6 +75,18 @@ public:
     return expected_kv_.at(k);
   }
 
+  bool test_all_words() const {
+    for (auto &it : expected_kv_) {
+      if (!has_value(it.first.c_str())) {
+        std::cout << it.first << std::endl;
+        return false;
+      }
+    }
+    return true;
+  }
+
+  TrieBuilder &builder() { return builder_; }
+
 private:
   TrieBuilder builder_;
   std::string filename_;
@@ -132,21 +144,21 @@ static void add_common_tests(bool diff_val = false) {
     test_type test("en_1k.txt");
     test.build_dict(diff_val);
     test.serialize();
-    expect(test.has_value(u8"aborticide"));
+    expect(test.test_all_words());
   };
 
   "test en_466k.txt"_test = [&] {
     test_type test("en_466k.txt");
     test.build_dict(diff_val);
     test.serialize();
-    expect(test.has_value(u8"scordature"));
+    expect(test.test_all_words());
   };
 
   "test zh_cn_406k.txt"_test = [&] {
     test_type test("zh_cn_406k.txt");
     test.build_dict(diff_val);
     test.serialize();
-    expect(test.has_value(u8"李祥霆"));
+    expect(test.test_all_words());
   };
 }
 

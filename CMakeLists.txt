@@ -15,4 +15,5 @@ add_compile_definitions(
 
 add_subdirectory(hashtrie)
 add_subdirectory(dawg)
+add_subdirectory(compact_dawg)
 add_subdirectory(datrie)

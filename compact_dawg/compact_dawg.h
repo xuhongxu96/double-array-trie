@@ -1,5 +1,5 @@
-#ifndef DAWG_H
-#define DAWG_H
+#ifndef COMPACT_DAWG_H
+#define COMPACT_DAWG_H
 
 #include <algorithm>
 #include <cassert>
@@ -18,13 +18,13 @@
 
 namespace xtrie {
 
-template <typename T = int, T DefaultValue = -1> class DAWG {
+template <typename T = int, T DefaultValue = -1> class CompactDAWG {
 public:
   using value_type = T;
   static constexpr value_type DEFAULT_VALUE = DefaultValue;
 
   class Node {
-    friend class DAWG;
+    friend class CompactDAWG;
 
   public:
     using trans_type = std::unordered_map<char, std::shared_ptr<Node>>;
@@ -79,6 +79,8 @@ public:
     value_type value_ = DEFAULT_VALUE;
     trans_type trans_;
 
+    std::string prefix_;
+
   public:
     ConstTransitionIterator trans_begin() const { return {trans_.cbegin()}; }
     ConstTransitionIterator trans_end() const { return {trans_.cend()}; }
@@ -89,6 +91,8 @@ public:
 
     bool has_value() const { return value_ != DEFAULT_VALUE; }
     const value_type &value() const { return value_; }
+
+    const std::string &prefix() const { return prefix_; }
 
     TransitionIterator trans_begin() { return {trans_.begin()}; }
     TransitionIterator trans_end() { return {trans_.end()}; }
@@ -104,6 +108,8 @@ public:
     void insert_trans(char ch, std::shared_ptr<Node> node) {
       trans_.insert_or_assign(ch, node);
     }
+
+    void set_prefix(std::string prefix) { prefix_ = std::move(prefix); }
   };
 
 private:
@@ -122,7 +128,7 @@ private:
 
 public:
   class TraverseResult {
-    friend class DAWG;
+    friend class CompactDAWG;
 
   public:
     const Node *state() const { return node_; }
@@ -141,15 +147,26 @@ public:
   struct Metrics {
     size_t state_size = 0;
     std::unordered_map<size_t, size_t> single_branch_length_to_count;
+    std::unordered_map<std::string, size_t> strings;
   };
 
 public:
-  DAWG() : build_(std::make_unique<BuildInfo>()) {}
+  CompactDAWG() : build_(std::make_unique<BuildInfo>()) {}
 
   TraverseResult traverse(std::string_view prefix, const Node *start) const {
     const Node *p = start;
     uint32_t i = 0;
     for (; i < prefix.size(); ++i) {
+      if (!p->prefix().empty()) {
+        for (auto p_ch : p->prefix()) {
+          if (i >= prefix.size() || p_ch != prefix[i++]) {
+            return {p, false, i};
+          }
+        }
+        if (i >= prefix.size())
+          break;
+      }
+
       auto it = p->trans_by(prefix[i]);
       if (it == p->trans_end()) {
         return {p, false, i};
@@ -209,6 +226,7 @@ public:
   void end_build() {
     minimize(0);
     build_.reset();
+    compact();
   }
 
   value_type &value_at(const Node *state) {
@@ -273,7 +291,8 @@ private:
   void collect_metrics(const Node *node, Metrics &meta,
                        size_t single_trans_size) const {
     ++meta.state_size;
-    if (node->trans_size() == 1 && !node->has_value()) {
+    ++meta.strings[node->prefix()];
+    if (node->trans_size() == 1) {
       ++single_trans_size;
     } else {
       if (single_trans_size > 0)
@@ -286,13 +305,89 @@ private:
       collect_metrics(it.target(), meta, single_trans_size);
     }
   }
+
+  void compact() {
+    std::unordered_map<Node *, size_t> referenced_nodes;
+    {
+      std::queue<Node *> q;
+      q.push(&root_);
+      while (!q.empty()) {
+        Node *node = q.front();
+        q.pop();
+
+        for (auto it = node->trans_begin(); it != node->trans_end(); ++it) {
+          ++referenced_nodes[it.target()];
+          q.push(it.target());
+        }
+      }
+    }
+
+    std::unordered_map<Node *, std::shared_ptr<Node>> old_to_new;
+    std::queue<std::tuple<std::shared_ptr<Node>, Node *, char>> q;
+
+    auto push_trans = [&q](Node *node) {
+      for (auto it = node->trans_begin(); it != node->trans_end(); ++it) {
+        q.push({it.target_shared_ptr(), node, it.key()});
+      }
+    };
+
+    auto is_refed_twice = [&referenced_nodes](Node *node) {
+      if (auto it = referenced_nodes.find(node); it != referenced_nodes.end()) {
+        return it->second > 1;
+      }
+
+      return false;
+    };
+
+    push_trans(&root_);
+
+    while (!q.empty()) {
+      auto [node, parent, key] = q.front();
+      q.pop();
+
+      if (auto new_it = old_to_new.find(node.get());
+          new_it != old_to_new.end()) {
+        parent->insert_trans(key, new_it->second);
+        continue;
+      }
+
+      if (node->trans_size() != 1 || node->has_value() ||
+          !node->prefix().empty() || is_refed_twice(node.get())) {
+        push_trans(node.get());
+        continue;
+      }
+
+      std::shared_ptr<Node> end = node;
+      std::string trans_str;
+      do {
+        auto next = end->trans_begin().target_shared_ptr();
+        if (is_refed_twice(next.get()))
+          break;
+
+        trans_str += end->trans_begin().key();
+        end = next;
+      } while (end->trans_size() == 1 && !end->has_value());
+
+      if (trans_str.size() < 4) {
+        // unworthy compacting
+        push_trans(node.get());
+        continue;
+      }
+
+      end->set_prefix(trans_str);
+      parent->insert_trans(key, end);
+      old_to_new[node.get()] = end;
+
+      push_trans(end.get());
+    }
+  }
 };
 
 #ifdef ASSERT_CONCEPT
-static_assert(IsKVTrie<DAWG<>>);
-static_assert(IsStaticTrieBuilder<DAWG<>>);
+static_assert(IsKVTrie<CompactDAWG<>>);
+static_assert(IsStaticTrieBuilder<CompactDAWG<>>);
 #endif
 
 } // namespace xtrie
 
-#endif // DAWG_H
+#endif // COMPACT_DAWG_H
