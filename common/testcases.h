@@ -85,9 +85,7 @@ public:
     return true;
   }
 
-  TrieBuilder &builder() { return builder_; }
-
-private:
+public:
   TrieBuilder builder_;
   std::string filename_;
   std::unordered_map<std::string, int> expected_kv_;
@@ -126,7 +124,17 @@ public:
     }
   }
 
-private:
+  bool test_all_words() const {
+    for (auto &it : builder_.expected_kv_) {
+      if (!has_value(it.first.c_str())) {
+        std::cout << it.first << std::endl;
+        return false;
+      }
+    }
+    return true;
+  }
+
+public:
   BuilderCommonTests<TrieBuilder, Serializer> builder_;
   Trie trie_;
 };
@@ -177,19 +185,19 @@ static void add_common_serializable_trie_tests(bool diff_val = false) {
   "test en_1k.txt"_test = [&] {
     test_type test("en_1k.txt");
     test.build(diff_val);
-    expect(test.has_value(u8"aborticide"));
+    expect(test.test_all_words());
   };
 
   "test en_466k.txt"_test = [&] {
     test_type test("en_466k.txt");
     test.build(diff_val);
-    expect(test.has_value(u8"scordature"));
+    expect(test.test_all_words());
   };
 
   "test zh_cn_406k.txt"_test = [&] {
     test_type test("zh_cn_406k.txt");
     test.build(diff_val);
-    expect(test.has_value(u8"李祥霆"));
+    expect(test.test_all_words());
   };
 }
 
