@@ -55,8 +55,10 @@ public:
       bool operator==(TransitionIterator_ b) const { return iter_ == b.iter_; }
 
       char key() const { return iter_->first; }
-      node_pointer_type target() { return iter_->second.get(); }
-      node_smart_pointer_type target_shared_ptr() { return iter_->second; }
+      node_pointer_type target() const { return iter_->second.get(); }
+      node_smart_pointer_type target_shared_ptr() const {
+        return iter_->second;
+      }
 
     protected:
       inner_iterator_type iter_;
@@ -80,6 +82,7 @@ public:
   public:
     ConstTransitionIterator trans_begin() const { return {trans_.cbegin()}; }
     ConstTransitionIterator trans_end() const { return {trans_.cend()}; }
+    size_t trans_size() const { return trans_.size(); }
     ConstTransitionIterator trans_by(char key) const {
       return {trans_.find(key)};
     }
@@ -133,6 +136,11 @@ public:
 
     TraverseResult(const Node *node, bool matched, uint32_t matched_length)
         : node_(node), matched_(matched), matched_length_(matched_length) {}
+  };
+
+  struct Metrics {
+    size_t state_size = 0;
+    std::unordered_map<size_t, size_t> single_branch_length_to_count;
   };
 
 public:
@@ -207,6 +215,12 @@ public:
     return const_cast<Node *>(state)->value();
   }
 
+  Metrics collect_metrics() const {
+    Metrics res;
+    collect_metrics(&root_, res, 0);
+    return res;
+  }
+
 private:
   Node root_;
 
@@ -253,6 +267,23 @@ private:
     }
     build_->node_id_map_.insert(it, {node, std::move(res)});
     return build_->node_id_map_[node];
+  }
+
+  void collect_metrics(const Node *node, Metrics &meta,
+                       size_t single_trans_size) const {
+    ++meta.state_size;
+    if (node->trans_size() == 1) {
+      ++single_trans_size;
+    } else {
+      if (single_trans_size > 0)
+        ++meta.single_branch_length_to_count[single_trans_size];
+
+      single_trans_size = 0;
+    }
+
+    for (auto it = node->trans_begin(); it != node->trans_end(); ++it) {
+      collect_metrics(it.target(), meta, single_trans_size);
+    }
   }
 };
 

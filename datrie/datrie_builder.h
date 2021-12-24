@@ -271,7 +271,8 @@ public:
       uint8_t mapped_ch = charmap_[static_cast<uint8_t>(prefix[i])];
       assert(base_[p] > 0);
       int64_t new_base = base_[p] + mapped_ch;
-      if (static_cast<size_t>(new_base) < check_.size() && check_[new_base] == mapped_ch) {
+      if (static_cast<size_t>(new_base) < check_.size() &&
+          check_[new_base] == mapped_ch) {
         p = new_base;
       } else {
         return {p, false, i};
@@ -295,10 +296,10 @@ public:
   void add(std::string_view sv, T value) {
     assert(base_.empty());
 
-    build_->trie_.add(sv, value);
+    build_->trie.add(sv, value);
 
     for (char c : sv) {
-      ++build_->char_freq_[c];
+      ++build_->char_freq[c];
     }
   }
 
@@ -306,7 +307,7 @@ public:
     assert(base_.empty());
 
     if constexpr (details::has_end_build<internal_trie_type>::value) {
-      build_->trie_.end_build();
+      build_->trie.end_build();
     }
 
     build_charmap();
@@ -341,16 +342,22 @@ private:
 
   struct BuildInfo {
     // internal trie
-    internal_trie_type trie_;
+    internal_trie_type trie;
 
     // meta info calculated from input words
-    std::unordered_map<char, size_t> char_freq_;
+    std::unordered_map<char, size_t> char_freq;
 
-    char rev_charmap_[MAX_CHAR_VAL + 1];
+    char rev_charmap[MAX_CHAR_VAL + 1];
   };
 
   struct PostMetaData {
-    int64_t max_base;
+    size_t max_base = 0;
+
+    size_t base_size = 0;
+    size_t state_size = 0;
+
+    size_t n_free_base = 0;
+    std::unordered_map<size_t, size_t> single_branch_length_to_count;
   };
 
 private:
@@ -366,15 +373,27 @@ private:
   PostMetaData post_;
 
   void build_post_meta_data() {
-    post_.max_base = *std::max_element(base_.begin(), base_.end());
+    post_.max_base =
+        static_cast<size_t>(*std::max_element(base_.begin(), base_.end()));
+    post_.base_size = base_.size();
+
+    for (size_t i = 0; i < base_.size(); ++i) {
+      if (free(i))
+        ++post_.n_free_base;
+    }
+
+    auto metrics = build_->trie.collect_metrics();
+    post_.state_size = metrics.state_size;
+    post_.single_branch_length_to_count =
+        std::move(metrics.single_branch_length_to_count);
   }
 
   void build_charmap() {
     std::fill(charmap_, charmap_ + MAX_CHAR_VAL + 1, 0);
-    std::fill(build_->rev_charmap_, build_->rev_charmap_ + MAX_CHAR_VAL + 1, 0);
+    std::fill(build_->rev_charmap, build_->rev_charmap + MAX_CHAR_VAL + 1, 0);
 
     std::vector<std::pair<size_t, char>> sorted_char_freq;
-    for (auto &[ch, n] : build_->char_freq_) {
+    for (auto &[ch, n] : build_->char_freq) {
       sorted_char_freq.push_back({n, ch});
     }
 
@@ -390,7 +409,7 @@ private:
       assert(sorted_char_freq[i].second != 0);
       charmap_[static_cast<uint8_t>(sorted_char_freq[i].second)] =
           i + 1; // keep 0 as null char
-      build_->rev_charmap_[i + 1] = sorted_char_freq[i].second;
+      build_->rev_charmap[i + 1] = sorted_char_freq[i].second;
     }
   }
 
@@ -475,7 +494,7 @@ private:
 
     std::queue<std::pair<const typename internal_trie_type::Node *, uint32_t>>
         q; // node and base
-    q.push({build_->trie_.traverse("").state(), 0});
+    q.push({build_->trie.traverse("").state(), 0});
 
     while (!q.empty()) {
       auto [node, node_base] = q.front();
@@ -515,7 +534,7 @@ private:
         // get next state node and store value
         assert(it.trans() < 256);
         auto next_node =
-            node->trans_by(build_->rev_charmap_[it.trans()]).target();
+            node->trans_by(build_->rev_charmap[it.trans()]).target();
         value_[current_base] = next_node->value();
 
         q.push({next_node, current_base});
