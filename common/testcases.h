@@ -20,13 +20,18 @@ public:
     auto words = load_lexicon((std::string(DATA_DIR) + filename_).c_str());
     std::sort(words.begin(), words.end());
 
-    auto mem0 = get_mem_info();
-
     int i = 0;
     for (auto &w : words) {
-      builder_.add(w, i);
       expected_kv_[w] = i;
+      if (diff_val)
+        ++i;
+    }
 
+    auto mem0 = get_mem_info();
+
+    i = 0;
+    for (auto &w : words) {
+      builder_.add(w, i);
       if (diff_val)
         ++i;
     }
