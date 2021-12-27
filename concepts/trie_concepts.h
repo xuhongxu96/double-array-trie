@@ -46,7 +46,7 @@ concept IsSerializableTrieBuilder = IsTrieBuilder<T> &&
   { builder.save(os, details::DummySerializer{}) } -> std::same_as<size_t>;
 };
 
-template <typename T, typename TValue>
+template <typename T>
 concept IsTraverseResult = requires(const std::remove_cvref_t<T> &res) {
   { res.matched() } -> std::convertible_to<bool>;
   { res.matched_length() } -> std::convertible_to<uint32_t>;
@@ -61,20 +61,13 @@ concept IsTrie = requires(std::remove_cvref_t<T> &trie) {
                         decltype(T::DEFAULT_VALUE)>;
 }
 &&requires(const std::remove_cvref_t<T> &trie) {
-  { trie.traverse("") } -> IsTraverseResult<typename T::value_type>;
-  {
-    trie.traverse("", trie.traverse("").state())
-    } -> IsTraverseResult<typename T::value_type>;
+  { trie.traverse("") } -> IsTraverseResult;
+  { trie.traverse("", trie.traverse("").state()) } -> IsTraverseResult;
   { trie.has_value_at(trie.traverse("").state()) } -> std::convertible_to<bool>;
 };
 
 template <typename T>
-concept IsKVTrie = IsTrie<T> && requires(std::remove_cvref_t<T> &trie) {
-
-  {
-    trie.value_at(trie.traverse("").state())
-    } -> std::same_as<typename T::value_type &>;
-} && requires(const std::remove_cvref_t<T> &trie) {
+concept IsKVTrie = IsTrie<T> && requires(const std::remove_cvref_t<T> &trie) {
   {
     trie.value_at(trie.traverse("").state())
     } -> std::same_as<const typename T::value_type &>;

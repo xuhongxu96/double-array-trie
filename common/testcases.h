@@ -7,6 +7,7 @@
 #include <chrono>
 #include <string>
 #include <trie_concepts.h>
+#include <unordered_map>
 
 template <xtrie::IsTrieBuilder TrieBuilder, typename Serializer = void>
 class BuilderCommonTests {
