@@ -4,6 +4,7 @@
 #include "loader.h"
 #include "profile.h"
 #include <boost/ut.hpp>
+#include <chrono>
 #include <string>
 #include <trie_concepts.h>
 
@@ -76,12 +77,15 @@ public:
   }
 
   bool test_all_words() const {
+    auto clk = std::chrono::steady_clock::now();
     for (auto &it : expected_kv_) {
       if (!has_value(it.first.c_str())) {
         std::cout << it.first << std::endl;
         return false;
       }
     }
+    auto diff = std::chrono::steady_clock::now() - clk;
+    std::cout << diff.count() << std::endl;
     return true;
   }
 
@@ -125,12 +129,15 @@ public:
   }
 
   bool test_all_words() const {
+    auto clk = std::chrono::steady_clock::now();
     for (auto &it : builder_.expected_kv_) {
       if (!has_value(it.first.c_str())) {
         std::cout << it.first << std::endl;
         return false;
       }
     }
+    auto diff = std::chrono::steady_clock::now() - clk;
+    std::cout << diff.count() << std::endl;
     return true;
   }
 
