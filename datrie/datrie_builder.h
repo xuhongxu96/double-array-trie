@@ -440,7 +440,7 @@ private:
     return check_[i] <= 0;
   }
   void resize(size_t n) {
-    size_t old_sz = base_.size();
+    int64_t old_sz = base_.size();
     base_.resize(n + 1);
     check_.resize(n + 1);
 
