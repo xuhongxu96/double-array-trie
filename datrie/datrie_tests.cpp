@@ -17,14 +17,14 @@ int main() {
   using namespace boost::ut::operators::terse;
   using namespace xtrie;
 
-  //add_common_serializable_trie_tests<
-  //    NoValueDoubleArrayTrie<>, DoubleArrayTrieBuilder<>, NoValueSerializer>();
+  add_common_serializable_trie_tests<
+      NoValueDoubleArrayTrie<>, DoubleArrayTrieBuilder<>, NoValueSerializer>();
 
   add_common_serializable_trie_tests<
       DefaultDoubleArrayTrie<>, DoubleArrayTrieBuilder<>, DefaultSerializer>(
       true);
 
-  //add_common_serializable_trie_tests<CompactDoubleArrayTrie<>,
-  //                                   DoubleArrayTrieBuilder<uint32_t, 0, true>,
-  //                                   CompactSerializer>(true);
+  add_common_serializable_trie_tests<CompactDoubleArrayTrie<>,
+                                     DoubleArrayTrieBuilder<uint32_t, 0, true>,
+                                     CompactSerializer>(true);
 }

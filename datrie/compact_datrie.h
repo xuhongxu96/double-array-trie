@@ -83,24 +83,27 @@ public:
   }
 
   bool has_value_at(unsigned state_index) const {
-    return bases_[state_index].terminal;
+    return bases_[state_index].value_flag != 0;
   }
 
   value_type value_at(unsigned state_index) const {
-    auto value_state_index = bases_[state_index].base;
-    if (has_value_at(state_index)) {
-      return static_cast<value_type>(bases_[value_state_index].base);
-    } else {
-      return DEFAULT_VALUE;
+    if (bases_[state_index].value_flag == 1) {
+      return static_cast<value_type>(bases_[bases_[state_index].base].base);
     }
+
+    if (bases_[state_index].value_flag == 2) {
+      return static_cast<value_type>(bases_[state_index].base);
+    }
+
+    return DEFAULT_VALUE;
   }
 
 private:
   union CompactUnit {
     struct {
-      unsigned terminal : 1;
+      unsigned value_flag : 2;
       unsigned check : 8;
-      unsigned base : 23;
+      unsigned base : 22;
     };
 
     uint32_t unit;

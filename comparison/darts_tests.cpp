@@ -154,7 +154,8 @@ int main() {
   using namespace boost::ut::operators::terse;
   using namespace xtrie;
 
-  "test"_test = [] { KVDartsWrapper darts;
+  "test"_test = [] {
+    KVDartsWrapper darts;
     darts.add("ab", 1);
     darts.add("abc", 2);
     darts.end_build();
@@ -163,8 +164,8 @@ int main() {
     expect(darts.value_at(res.state()) == 1);
   };
 
-  //add_common_tests<DartsWrapper>();
-  //add_common_tests<KVDartsWrapper>(true);
+  add_common_tests<DartsWrapper>();
+  add_common_tests<KVDartsWrapper>(true);
 
   return 0;
 }

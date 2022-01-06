@@ -292,10 +292,18 @@ public:
   value_type value_at(int64_t state_index) const {
     if constexpr (CompactValueIntoArray) {
       auto s = base_[state_index];
-      if (s < base_.size() && value_[state_index] == 1) {
-        assert(check_[s] == 1);
-        return static_cast<value_type>(base_[s]);
+      if (value_[state_index] == 1) {
+        if (s < base_.size()) {
+          assert(check_[s] == 1);
+          return static_cast<value_type>(base_[s]);
+        }
+        return DEFAULT_VALUE;
       }
+
+      if (value_[state_index] == 2) {
+        return static_cast<value_type>(s);
+      }
+
       return DEFAULT_VALUE;
     } else {
       return value_[state_index];
@@ -543,12 +551,20 @@ private:
       }
 
       if constexpr (CompactValueIntoArray) {
-        if (node->has_value()) {
-          trans_set.add(0);
+        if (trans_set.empty()) {
+          if (node->has_value()) {
+            // inline value
+            base_[node_base] = node->value();
+            value_[node_base] = 2; // mark as inline value
+          } else {
+            // leaf node
+            base_[node_base] = 0;
+          }
+          continue;
         }
 
-        if (trans_set.empty()) {
-          continue;
+        if (node->has_value()) {
+          trans_set.add(0);
         }
       } else {
         if (trans_set.empty()) {
