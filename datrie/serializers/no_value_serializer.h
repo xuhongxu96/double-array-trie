@@ -1,22 +1,20 @@
-#ifndef DATRIE_COMPACT_SERIALIZER
-#define DATRIE_COMPACT_SERIALIZER
+#ifndef DATRIE_NO_VALUE_SERIALIZER
+#define DATRIE_NO_VALUE_SERIALIZER
 
 #include <cstdint>
 #include <vector>
 
 namespace xtrie {
 
-//! @brief Compact serializer will save the values into the base array (offset
-//! by 0)
+//! @brief No-value serializer will not save the values, but save a flag
+//! indicating whether the state is a terminal
 //!
-//!     base value must be less than 2^24 so that the base and check can be
+//!     base value must be less than 2^23 so that the base and check can be
 //!     stored in a single int32.
 //!
-//!     24 bit for base, 8 bit for check.
+//!     23 bit for base, 8 bit for check, 1 bit for terminal flag.
 //!
-//!     values will be saved in another array at the end.
-//!
-struct CompactSerializer {
+struct NoValueSerializer {
   template <typename T>
   size_t get_size(const std::vector<int64_t> &base,
                   const std::vector<int64_t> &, const std::vector<T> &,
@@ -28,7 +26,6 @@ struct CompactSerializer {
   void operator()(OStream &os, const std::vector<int64_t> &base,
                   const std::vector<int64_t> &check,
                   const std::vector<T> &value, T default_value) const {
-    static_assert(sizeof(T) <= sizeof(uint32_t));
 
     union {
       CompactUnit unit;
@@ -36,11 +33,11 @@ struct CompactSerializer {
     };
 
     for (size_t i = 0; i < base.size(); ++i) {
-      assert(base[i] < (1 << 24) && check[i] < (1 << 8));
+      assert(base[i] < (1 << 23) && check[i] < (1 << 8));
 
       unit.base = static_cast<uint32_t>(base[i]);
       unit.check = static_cast<uint8_t>(check[i]);
-      unit.terminal = value[i] == 1;
+      unit.terminal = value[i] != default_value;
 
       os.write(reinterpret_cast<char *>(&uint32), sizeof(uint32_t));
     }
@@ -58,4 +55,4 @@ private:
 
 } // namespace xtrie
 
-#endif // DATRIE_COMPACT_SERIALIZER
+#endif // DATRIE_NO_VALUE_SERIALIZER

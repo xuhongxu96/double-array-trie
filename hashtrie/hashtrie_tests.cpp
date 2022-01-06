@@ -10,6 +10,7 @@ int main() {
   using namespace xtrie;
 
   add_common_tests<HashTrie<>>();
+  add_common_tests<HashTrie<>>(true);
 
   return 0;
 }

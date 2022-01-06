@@ -22,7 +22,7 @@ public:
     auto words = load_lexicon((std::string(DATA_DIR) + filename_).c_str());
     std::sort(words.begin(), words.end());
 
-    int i = 0;
+    int i = 1;
     for (auto &w : words) {
       expected_kv_[w] = i;
       if (diff_val)
@@ -31,7 +31,7 @@ public:
 
     auto mem0 = get_mem_info();
 
-    i = 0;
+    i = 1;
     for (auto &w : words) {
       builder_.add(w, i);
       if (diff_val)
@@ -86,7 +86,8 @@ public:
       }
     }
     auto diff = std::chrono::steady_clock::now() - clk;
-    std::cout << diff.count() << std::endl;
+    std::cout << static_cast<double>(diff.count()) / 1e6 / expected_kv_.size()
+              << "ms/word" << std::endl;
     return true;
   }
 
@@ -138,7 +139,9 @@ public:
       }
     }
     auto diff = std::chrono::steady_clock::now() - clk;
-    std::cout << diff.count() << std::endl;
+    std::cout << static_cast<double>(diff.count()) / 1e6 /
+                     builder_.expected_kv_.size()
+              << "ms/word" << std::endl;
     return true;
   }
 

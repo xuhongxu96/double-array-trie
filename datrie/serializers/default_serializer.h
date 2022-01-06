@@ -30,15 +30,15 @@ struct DefaultSerializer {
     static_assert(sizeof(T) <= sizeof(uint32_t));
 
     union {
-      CompactValue val;
+      CompactUnit unit;
       uint32_t uint32;
     };
 
     for (size_t i = 0; i < base.size(); ++i) {
       assert(base[i] < (1 << 24) && check[i] < (1 << 8));
 
-      val.base = static_cast<uint32_t>(base[i]);
-      val.check = static_cast<uint8_t>(check[i]);
+      unit.base = static_cast<uint32_t>(base[i]);
+      unit.check = static_cast<uint8_t>(check[i]);
 
       os.write(reinterpret_cast<char *>(&uint32), sizeof(uint32_t));
     }
@@ -49,12 +49,12 @@ struct DefaultSerializer {
   }
 
 private:
-  struct CompactValue {
+  struct CompactUnit {
     unsigned check : 8;
     unsigned base : 24;
   };
 
-  static_assert(sizeof(CompactValue) == sizeof(uint32_t));
+  static_assert(sizeof(CompactUnit) == sizeof(uint32_t));
 };
 
 } // namespace xtrie

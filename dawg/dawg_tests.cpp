@@ -9,7 +9,9 @@ int main() {
   using namespace boost::ut::operators::terse;
   using namespace xtrie;
 
-  "test"_test = [] {
+  "test bug 1"_test = [] {
+    // Bug: two terminals in a suffix "ds" or two branches "d" and "s"
+    // may be serialized into the same id string before
     DAWG dawg;
 
     std::vector<std::string> words{"abattised", "abattises", "abfarad",
@@ -22,8 +24,6 @@ int main() {
     dawg.end_build();
     expect(dawg.traverse("abfarads").matched());
   };
-
-  add_common_tests<DAWG<>>();
 
   "test 'e' node is shared btw 'he' and 'me'"_test = [] {
     DAWG dawg;
@@ -40,6 +40,9 @@ int main() {
     auto node_me = dawg.traverse("me").state();
     expect(node_he == node_me);
   };
+
+  add_common_tests<DAWG<>>();
+  add_common_tests<DAWG<>>(true);
 
   return 0;
 }

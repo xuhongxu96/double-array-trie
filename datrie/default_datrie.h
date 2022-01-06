@@ -58,7 +58,7 @@ public:
     for (size_t i = 0; i < bases_.size(); ++i) {
       uint32_t res;
       is.read(reinterpret_cast<char *>(&res), sizeof(uint32_t));
-      bases_[i].val = res;
+      bases_[i].unit = res;
     }
 
     for (size_t i = 0; i < values_.size(); ++i) {
@@ -97,19 +97,19 @@ public:
   value_type &value_at(unsigned state_index) { return values_[state_index]; }
 
 private:
-  union CompactValue {
+  union CompactUnit {
     struct {
       unsigned check : 8;
       unsigned base : 24;
     };
 
-    uint32_t val;
+    uint32_t unit;
   };
 
-  static_assert(sizeof(CompactValue) == sizeof(uint32_t));
+  static_assert(sizeof(CompactUnit) == sizeof(uint32_t));
 
   uint8_t charmap_[MAX_CHAR_VAL + 1];
-  std::vector<CompactValue> bases_;
+  std::vector<CompactUnit> bases_;
   std::vector<value_type> values_;
 };
 

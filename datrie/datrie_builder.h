@@ -235,7 +235,11 @@ private:
 //!     brings, so, we need a switch to disable this charmap feature.
 //!
 //! @tparam T value type
-template <typename T = int, T DefaultValue = -1> class DoubleArrayTrieBuilder {
+template <typename T = int, T DefaultValue = -1,
+          bool CompactValueIntoArray = false>
+class DoubleArrayTrieBuilder {
+  static_assert(!CompactValueIntoArray || sizeof(T) <= sizeof(uint32_t));
+
 public:
   using internal_trie_type = DAWG<T, DefaultValue>;
   using value_type = typename internal_trie_type::value_type;
@@ -285,8 +289,17 @@ public:
     return traverse(prefix, 0);
   }
 
-  const value_type &value_at(int64_t state_index) const {
-    return value_[state_index];
+  value_type value_at(int64_t state_index) const {
+    if constexpr (CompactValueIntoArray) {
+      auto s = base_[state_index];
+      if (s < base_.size() && value_[state_index] == 1) {
+        assert(check_[s] == 1);
+        return static_cast<value_type>(base_[s]);
+      }
+      return DEFAULT_VALUE;
+    } else {
+      return value_[state_index];
+    }
   }
 
   bool has_value_at(int64_t state_index) const {
@@ -317,11 +330,10 @@ public:
     build_.reset(nullptr);
   }
 
-  value_type &value_at(int64_t state_index) { return value_[state_index]; }
-
   template <typename OStream, typename F>
   size_t save(OStream &os, F &&serialize_base_check_value) const {
-    assert(base_.size() == check_.size() && base_.size() == value_.size());
+    assert(base_.size() == check_.size());
+    assert(base_.size() == value_.size());
 
     constexpr uint32_t charmap_size = sizeof(uint8_t) * (MAX_CHAR_VAL + 1);
 
@@ -332,6 +344,7 @@ public:
 
     os.write(reinterpret_cast<char *>(&size_sum), sizeof(uint32_t));
     os.write(reinterpret_cast<const char *>(charmap_), charmap_size);
+
     serialize_base_check_value(os, base_, check_, value_, DEFAULT_VALUE);
 
     return size_sum;
@@ -419,8 +432,25 @@ private:
     return check_[i] <= 0;
   }
   void resize(size_t n) {
-    base_.resize(n + 1, 0);
-    check_.resize(n + 1, 0);
+    size_t old_sz = base_.size();
+    base_.resize(n + 1);
+    check_.resize(n + 1);
+
+    if (n + 1 > old_sz) {
+      auto final_free = 0;
+      while (next_free_base(final_free) != old_sz) {
+        final_free = next_free_base(final_free);
+      }
+
+      base_[old_sz] = -final_free;
+      check_[old_sz] = -(old_sz + 1);
+
+      for (int64_t i = old_sz + 1; i < n + 1; ++i) {
+        base_[i] = -(i - 1);
+        check_[i] = -(i + 1);
+      }
+    }
+
     value_.resize(n + 1, DefaultValue);
   }
 
@@ -451,19 +481,21 @@ private:
 
   uint32_t next_free_base(uint32_t base) const {
     assert(overflow(base) || check_[base] <= 0);
-    if (overflow(base) || check_[base] == 0)
+    if (overflow(base))
       return base + 1;
     return static_cast<uint32_t>(-check_[base]);
   }
 
   uint32_t last_free_base(uint32_t base) const {
     assert(free(base) && base_[base] <= 0);
-    if (base_[base] == 0)
-      return base - 1;
+    // if (base_[base] == 0)
+    //  return base - 1;
     return static_cast<uint32_t>(-base_[base]);
   }
 
   void set_last_free_index(uint32_t for_base, uint32_t last_free_index) {
+    if (overflow(for_base))
+      return;
     base_[for_base] = -static_cast<int64_t>(last_free_index);
   }
 
@@ -510,10 +542,20 @@ private:
         trans_set.add(ch);
       }
 
-      if (trans_set.empty()) {
-        // leaf node
-        base_[node_base] = 0;
-        continue;
+      if constexpr (CompactValueIntoArray) {
+        if (node->has_value()) {
+          trans_set.add(0);
+        }
+
+        if (trans_set.empty()) {
+          continue;
+        }
+      } else {
+        if (trans_set.empty()) {
+          // leaf node
+          base_[node_base] = 0;
+          continue;
+        }
       }
 
       uint32_t start_base = find_or_allocate_free_base(trans_set);
@@ -528,6 +570,16 @@ private:
         set_last_free_index(next_free_index, last_free_index);
         set_next_free_index(last_free_index, next_free_index);
 
+        if constexpr (CompactValueIntoArray) {
+          if (it.trans() == 0) {
+            base_[current_base] = node->value();
+            check_[current_base] =
+                1; // just mark it for used, any non-zero value is ok
+            value_[node_base] = 1; // just mark it has value
+            continue;
+          }
+        }
+
         // assign trans
         check_[current_base] = it.trans();
 
@@ -535,7 +587,10 @@ private:
         assert(it.trans() < 256);
         auto next_node =
             node->trans_by(build_->rev_charmap[it.trans()]).target();
-        value_[current_base] = next_node->value();
+
+        if constexpr (!CompactValueIntoArray) {
+          value_[current_base] = next_node->value();
+        }
 
         q.push({next_node, current_base});
       }

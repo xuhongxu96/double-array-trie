@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <exception>
 #include <new>
+#include <cstdint>
 
 #define DARTS_VERSION "0.32"
 
@@ -32,11 +33,11 @@ namespace Details {
 // sequences of <char_type>s. <uchar_type> is the unsigned type of <char_type>.
 typedef char char_type;
 typedef unsigned char uchar_type;
-typedef int value_type;
+typedef int32_t value_type;
 
 // The main structure of Darts-clone is an array of <DoubleArrayUnit>s, and the
 // unit type is actually a wrapper of <id_type>.
-typedef unsigned int id_type;
+typedef uint32_t id_type;
 
 // <progress_func_type> is the type of callback functions for reporting the
 // progress of building a dictionary. See also build() of <DoubleArray>.
@@ -313,7 +314,7 @@ class DoubleArrayImpl {
 
 // <DoubleArray> is the typical instance of <DoubleArrayImpl>. It uses <int>
 // as the type of values and it is suitable for most cases.
-typedef DoubleArrayImpl<void, void, int, void> DoubleArray;
+typedef DoubleArrayImpl<void, void, int32_t, void> DoubleArray;
 
 // The interface section ends here. For using Darts-clone, there is no need
 // to read the remaining section, which gives the implementation of
@@ -1035,7 +1036,7 @@ class DawgBuilder {
   id_type sibling(id_type id) const {
     return units_[id].has_sibling() ? (id + 1) : 0;
   }
-  int value(id_type id) const {
+  value_type value(id_type id) const {
     return units_[id].value();
   }
 

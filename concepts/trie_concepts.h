@@ -70,7 +70,7 @@ template <typename T>
 concept IsKVTrie = IsTrie<T> && requires(const std::remove_cvref_t<T> &trie) {
   {
     trie.value_at(trie.traverse("").state())
-    } -> std::same_as<const typename T::value_type &>;
+    } -> std::convertible_to<typename T::value_type>;
 };
 
 template <typename T>

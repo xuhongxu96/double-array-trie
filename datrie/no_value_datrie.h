@@ -1,5 +1,5 @@
-#ifndef COMPACT_DATRIE_H
-#define COMPACT_DATRIE_H
+#ifndef NO_VALUE_DATRIE_H
+#define NO_VALUE_DATRIE_H
 
 #include <cassert>
 #include <cstdint>
@@ -12,14 +12,13 @@
 
 namespace xtrie {
 
-template <typename T = uint32_t, T DefaultValue = 0>
-class CompactDoubleArrayTrie {
+template <typename T = int, T DefaultValue = -1> class NoValueDoubleArrayTrie {
 public:
   using value_type = T;
   static constexpr value_type DEFAULT_VALUE = DefaultValue;
 
   class TraverseResult {
-    friend class CompactDoubleArrayTrie;
+    friend class NoValueDoubleArrayTrie;
 
   public:
     unsigned state() const { return state_index_; }
@@ -86,15 +85,6 @@ public:
     return bases_[state_index].terminal;
   }
 
-  value_type value_at(unsigned state_index) const {
-    auto value_state_index = bases_[state_index].base;
-    if (has_value_at(state_index)) {
-      return static_cast<value_type>(bases_[value_state_index].base);
-    } else {
-      return DEFAULT_VALUE;
-    }
-  }
-
 private:
   union CompactUnit {
     struct {
@@ -113,10 +103,9 @@ private:
 };
 
 #ifdef ASSERT_CONCEPT
-static_assert(IsDeserializableTrie<CompactDoubleArrayTrie<>>);
-static_assert(IsKVTrie<CompactDoubleArrayTrie<>>);
+static_assert(IsDeserializableTrie<NoValueDoubleArrayTrie<>>);
 #endif
 
 } // namespace xtrie
 
-#endif // COMPACT_DATRIE_H
+#endif // NO_VALUE_DATRIE_H
