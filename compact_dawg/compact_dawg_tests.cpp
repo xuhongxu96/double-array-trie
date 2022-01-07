@@ -10,6 +10,7 @@ int main() {
   using namespace xtrie;
 
   add_common_tests<CompactDAWG<>>();
+  add_common_tests<CompactDAWG<>>(true);
 
   "test 'e' node is shared btw 'he' and 'me'"_test = [] {
     CompactDAWG dawg;
